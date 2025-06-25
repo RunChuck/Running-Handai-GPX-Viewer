@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import styled from '@emotion/styled';
 import Sidebar from './Sidebar';
 import MapView from './MapView';
+import Toast from './Toast';
 import type { MapViewRef } from './MapView';
 import type { GPXFile } from '../types/gpx';
 
@@ -9,14 +10,26 @@ const Container = styled.div`
   display: flex;
   height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
 `;
 
 const GPXViewer = () => {
   const [gpxFiles, setGpxFiles] = useState<GPXFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(8); 
+  const [zoomLevel, setZoomLevel] = useState<number>(8);
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
   const mapViewRef = useRef<MapViewRef>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  };
+
+  const closeToast = () => {
+    setIsToastVisible(false);
+  };
 
   const handleFileUpload = (newFile: GPXFile) => {
     setGpxFiles(prev => [...prev, newFile]);
@@ -65,11 +78,23 @@ const GPXViewer = () => {
     setZoomLevel(level);
   };
 
+  const handleLocationError = (errorMessage: string) => {
+    showToast(errorMessage);
+  };
+
   // 현재 활성 파일 찾기
   const activeFile = gpxFiles.find(file => file.id === activeFileId) || null;
 
   return (
     <Container>
+      <Toast 
+        message={toastMessage}
+        type="error"
+        isVisible={isToastVisible}
+        onClose={closeToast}
+        duration={3000}
+      />
+      
       <Sidebar
         gpxFiles={gpxFiles}
         activeFileId={activeFileId}
@@ -86,6 +111,7 @@ const GPXViewer = () => {
         activeFile={activeFile} 
         isSidebarCollapsed={isSidebarCollapsed}
         onZoomChange={handleZoomChange}
+        onLocationError={handleLocationError}
       />
     </Container>
   );

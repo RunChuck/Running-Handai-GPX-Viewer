@@ -6,6 +6,7 @@ interface MapViewProps {
   activeFile: GPXFile | null;
   isSidebarCollapsed: boolean;
   onZoomChange?: (zoomLevel: number) => void;
+  onLocationError?: (errorMessage: string) => void;
 }
 
 export interface MapViewRef {
@@ -19,7 +20,7 @@ const MapContainer = styled.div`
   position: relative;
 `;
 
-const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCollapsed, onZoomChange }, ref) => {
+const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCollapsed, onZoomChange, onLocationError }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<kakao.maps.Map | null>(null);
   const polylines = useRef<kakao.maps.Polyline[]>([]);
@@ -34,12 +35,20 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
   // 현재 위치로 이동하는 함수
   const moveToCurrentLocation = () => {
     if (!mapInstance.current) {
-      console.error('지도가 초기화되지 않았습니다.');
+      const errorMessage = '지도가 초기화되지 않았습니다.';
+      console.error(errorMessage);
+      if (onLocationError) {
+        onLocationError(errorMessage);
+      }
       return;
     }
 
     if (!navigator.geolocation) {
-      console.error('이 브라우저는 위치 서비스를 지원하지 않습니다.');
+      const errorMessage = '이 브라우저는 위치 서비스를 지원하지 않습니다.';
+      console.error(errorMessage);
+      if (onLocationError) {
+        onLocationError(errorMessage);
+      }
       return;
     }
 
@@ -72,6 +81,9 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
         }
         
         console.error('현재 위치 오류:', errorMessage);
+        if (onLocationError) {
+          onLocationError(errorMessage);
+        }
       },
       {
         enableHighAccuracy: true,
