@@ -15,6 +15,7 @@ const GPXViewer = () => {
   const [gpxFiles, setGpxFiles] = useState<GPXFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(8); 
   const mapViewRef = useRef<MapViewRef>(null);
 
   const handleFileUpload = (newFile: GPXFile) => {
@@ -24,6 +25,10 @@ const GPXViewer = () => {
 
   const handleFileSelect = (file: GPXFile) => {
     setActiveFileId(file.id);
+    // 파일 선택 시 항상 해당 경로로 이동
+    if (mapViewRef.current) {
+      mapViewRef.current.moveToFileRoute(file);
+    }
   };
 
   const handleFileDelete = (fileId: string) => {
@@ -56,6 +61,10 @@ const GPXViewer = () => {
     }
   };
 
+  const handleZoomChange = (level: number) => {
+    setZoomLevel(level);
+  };
+
   // 현재 활성 파일 찾기
   const activeFile = gpxFiles.find(file => file.id === activeFileId) || null;
 
@@ -65,6 +74,7 @@ const GPXViewer = () => {
         gpxFiles={gpxFiles}
         activeFileId={activeFileId}
         isCollapsed={isSidebarCollapsed}
+        zoomLevel={zoomLevel}
         onFileUpload={handleFileUpload}
         onFileSelect={handleFileSelect}
         onFileDelete={handleFileDelete}
@@ -75,6 +85,7 @@ const GPXViewer = () => {
         ref={mapViewRef}
         activeFile={activeFile} 
         isSidebarCollapsed={isSidebarCollapsed}
+        onZoomChange={handleZoomChange}
       />
     </Container>
   );

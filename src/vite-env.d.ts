@@ -30,6 +30,9 @@ declare global {
           strokeOpacity: number;
           strokeStyle: string;
         }) => kakao.maps.Polyline;
+        event: {
+          addListener: (target: any, type: string, handler: () => void) => void;
+        };
       };
     };
   }
@@ -37,6 +40,10 @@ declare global {
   namespace kakao.maps {
     class Map {
       setBounds(bounds: LatLngBounds): void;
+      getLevel(): number;
+      setLevel(level: number): void;
+      setCenter(latlng: LatLng): void;
+      relayout(): void;
     }
     
     class LatLng {

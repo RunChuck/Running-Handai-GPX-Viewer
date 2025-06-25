@@ -5,10 +5,12 @@ import type { GPXFile } from '../types/gpx';
 interface MapViewProps {
   activeFile: GPXFile | null;
   isSidebarCollapsed: boolean;
+  onZoomChange?: (zoomLevel: number) => void;
 }
 
 export interface MapViewRef {
   moveToCurrentLocation: () => void;
+  moveToFileRoute: (file: GPXFile) => void;
 }
 
 const MapContainer = styled.div`
@@ -17,7 +19,7 @@ const MapContainer = styled.div`
   position: relative;
 `;
 
-const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCollapsed }, ref) => {
+const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCollapsed, onZoomChange }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<kakao.maps.Map | null>(null);
   const polylines = useRef<kakao.maps.Polyline[]>([]);
@@ -25,7 +27,8 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
 
   // 부모 컴포넌트에서 호출할 수 있는 메서드 노출
   useImperativeHandle(ref, () => ({
-    moveToCurrentLocation
+    moveToCurrentLocation,
+    moveToFileRoute
   }));
 
   // 현재 위치로 이동하는 함수
@@ -98,11 +101,27 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
           const options = {
             center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 시청 좌표
             level: 8,
+            draggable: true, 
+            scrollwheel: true,
           };
 
           const map = new window.kakao.maps.Map(container, options);
           mapInstance.current = map;
           console.log('지도 초기화 완료');
+
+          // 초기 줌 레벨 콜백 호출
+          if (onZoomChange) {
+            onZoomChange(map.getLevel());
+          }
+
+          // 줌 레벨 변경 이벤트 리스너 추가
+          window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
+            const currentLevel = map.getLevel();
+            console.log('줌 레벨 변경:', currentLevel);
+            if (onZoomChange) {
+              onZoomChange(currentLevel);
+            }
+          });
 
           // ResizeObserver 설정
           setupResizeObserver();
@@ -186,18 +205,42 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
     polyline.setMap(mapInstance.current);
     polylines.current.push(polyline);
 
-    // 경로가 모두 보이도록 지도 범위 조정
+    // 파일 선택시 항상 해당 경로가 보이도록 지도 범위 조정
     const bounds = new window.kakao.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
     mapInstance.current.setBounds(bounds);
-
-    console.log(`경로 표시 완료: ${file.data.name}`);
+    console.log(`경로 표시 및 이동 완료: ${file.data.name}`);
   };
 
   // 지도에서 모든 경로 제거
   const clearRoutes = () => {
     polylines.current.forEach(polyline => polyline.setMap(null));
     polylines.current = [];
+  };
+
+  const moveToFileRoute = (file: GPXFile) => {
+    if (!mapInstance.current || !window.kakao || !file.data.points.length) return;
+
+    clearRoutes();
+
+    const path = file.data.points.map(
+      point => new window.kakao.maps.LatLng(point.lat, point.lng)
+    );
+
+    const polyline = new window.kakao.maps.Polyline({
+      path: path,
+      strokeWeight: 4,
+      strokeColor: file.color,
+      strokeOpacity: 0.8,
+      strokeStyle: 'solid',
+    });
+
+    polyline.setMap(mapInstance.current);
+    polylines.current.push(polyline);
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    path.forEach(point => bounds.extend(point));
+    mapInstance.current.setBounds(bounds);
   };
 
   return <MapContainer ref={mapContainer} />;

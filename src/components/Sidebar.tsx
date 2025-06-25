@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styled from '@emotion/styled';
-import { HiTrash, HiChevronLeft, HiChevronRight, HiMapPin } from 'react-icons/hi2';
+import { HiTrash, HiChevronLeft, HiChevronRight, HiMapPin, HiMagnifyingGlass } from 'react-icons/hi2';
 import { parseGPX } from '../utils/gpxParser';
 import type { GPXFile } from '../types/gpx';
 
@@ -8,6 +8,7 @@ interface SidebarProps {
   gpxFiles: GPXFile[];
   activeFileId: string | null;
   isCollapsed: boolean;
+  zoomLevel: number;
   onFileUpload: (file: GPXFile) => void;
   onFileSelect: (file: GPXFile) => void;
   onFileDelete: (fileId: string) => void;
@@ -99,13 +100,11 @@ const DropZoneText = styled.p`
   line-height: 1.4;
 `;
 
-
-
 const LocationButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 8px 12px;
   background: white;
   color: #4561FF;
   border: 2px solid #4561FF;
@@ -113,7 +112,9 @@ const LocationButton = styled.button`
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
-  min-width: 44px;
+  min-width: auto;
+  width: 100%;
+  margin-top: 8px;
 
   &:hover {
     background: #4561FF;
@@ -226,7 +227,40 @@ const EmptyState = styled.div`
   margin-top: 20px;
 `;
 
-const Sidebar = ({ gpxFiles, activeFileId, isCollapsed, onFileUpload, onFileSelect, onFileDelete, onToggle, onLocationRequest }: SidebarProps) => {
+const ZoomLevelContainer = styled.div`
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9ff;
+  border: 1px solid #e0e6ff;
+  border-radius: 8px;
+`;
+
+const ZoomLevelTitle = styled.div`
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const ZoomLevelValue = styled.div`
+  font-size: 18px;
+  color: #4561FF;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const ZoomRange = styled.div`
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+`;
+
+const Sidebar = ({ gpxFiles, activeFileId, isCollapsed, zoomLevel, onFileUpload, onFileSelect, onFileDelete, onToggle, onLocationRequest }: SidebarProps) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -350,10 +384,20 @@ const Sidebar = ({ gpxFiles, activeFileId, isCollapsed, onFileUpload, onFileSele
                 </DropZoneText>
               </DropZone>
 
+              <ZoomLevelContainer>
+                <ZoomLevelTitle>
+                  <HiMagnifyingGlass size={14} />
+                  지도 확대 수준
+                </ZoomLevelTitle>
+                <ZoomLevelValue>
+                  레벨 {zoomLevel}
+                  <ZoomRange>/ 14</ZoomRange>
+                </ZoomLevelValue>
+              </ZoomLevelContainer>
+
               <LocationButton 
                 onClick={handleLocationClick}
                 title="현재 위치로 이동"
-                style={{ width: '100%', marginBottom: '0px' }}
               >
                 <HiMapPin size={16} />
               </LocationButton>
