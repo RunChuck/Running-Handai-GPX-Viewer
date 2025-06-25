@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import styled from '@emotion/styled';
 import type { GPXFile } from '../types/gpx';
 
@@ -25,15 +25,22 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
   const mapInstance = useRef<kakao.maps.Map | null>(null);
   const polylines = useRef<kakao.maps.Polyline[]>([]);
   const resizeObserver = useRef<ResizeObserver | null>(null);
+  const locationRequestRef = useRef<{
+    isRequesting: boolean;
+    hasSucceeded: boolean;
+    errorTimeout: NodeJS.Timeout | null;
+  }>({
+    isRequesting: false,
+    hasSucceeded: false,
+    errorTimeout: null
+  });
 
-  // 부모 컴포넌트에서 호출할 수 있는 메서드 노출
-  useImperativeHandle(ref, () => ({
-    moveToCurrentLocation,
-    moveToFileRoute
-  }));
+  const moveToCurrentLocation = useCallback(() => {
+    if (locationRequestRef.current.isRequesting) {
+      console.log('위치 요청이 이미 진행 중입니다.');
+      return;
+    }
 
-  // 현재 위치로 이동하는 함수
-  const moveToCurrentLocation = () => {
     if (!mapInstance.current) {
       const errorMessage = '지도가 초기화되지 않았습니다.';
       console.error(errorMessage);
@@ -52,6 +59,15 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
       return;
     }
 
+    // 위치 요청 시작
+    locationRequestRef.current.isRequesting = true;
+    locationRequestRef.current.hasSucceeded = false;
+    
+    // 기존 에러 타이머 클리어
+    if (locationRequestRef.current.errorTimeout) {
+      clearTimeout(locationRequestRef.current.errorTimeout);
+    }
+
     console.log('현재 위치를 가져오는 중...');
     
     navigator.geolocation.getCurrentPosition(
@@ -59,39 +75,106 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
         const { latitude, longitude } = position.coords;
         console.log(`현재 위치: ${latitude}, ${longitude}`);
         
+        // 성공 플래그 설정
+        locationRequestRef.current.hasSucceeded = true;
+        
         if (mapInstance.current && window.kakao) {
           const currentPosition = new window.kakao.maps.LatLng(latitude, longitude);
           mapInstance.current.setCenter(currentPosition);
           mapInstance.current.setLevel(3); // 현재 위치 확대
         }
+        
+        // 요청 완료
+        locationRequestRef.current.isRequesting = false;
+        
+        // error 타이머 클리어
+        if (locationRequestRef.current.errorTimeout) {
+          clearTimeout(locationRequestRef.current.errorTimeout);
+          locationRequestRef.current.errorTimeout = null;
+        }
       },
       (error) => {
-        let errorMessage = '위치를 가져올 수 없습니다.';
+        console.log('위치 에러 발생:', error.code, error.message);
         
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = '위치 접근 권한이 거부되었습니다.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = '위치 정보를 사용할 수 없습니다.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = '위치 요청 시간이 초과되었습니다.';
-            break;
-        }
-        
-        console.error('현재 위치 오류:', errorMessage);
-        if (onLocationError) {
-          onLocationError(errorMessage);
-        }
+        // 에러 발생 후 잠시 기다렸다가 성공했는지 확인
+        locationRequestRef.current.errorTimeout = setTimeout(() => {
+          // 1초 후에도 성공하지 않았다면 진짜 에러로 처리
+          if (!locationRequestRef.current.hasSucceeded) {
+            let errorMessage = '위치를 가져올 수 없습니다.';
+            
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = '위치 접근 권한이 거부되었습니다.';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = '위치 정보를 사용할 수 없습니다.';
+                break;
+              case error.TIMEOUT:
+                errorMessage = '위치 요청 시간이 초과되었습니다.';
+                break;
+            }
+            
+            console.error('진짜 위치 오류:', errorMessage);
+            if (onLocationError) {
+              onLocationError(errorMessage);
+            }
+          } else {
+            console.log('에러가 발생했지만 위치 조회는 성공했습니다.');
+          }
+          
+          // 요청 완료
+          locationRequestRef.current.isRequesting = false;
+          locationRequestRef.current.errorTimeout = null;
+        }, 1000); 
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000 // 5분
+        timeout: 15000, 
+        maximumAge: 300000 
       }
     );
-  };
+  }, [onLocationError]);
+
+  // 파일 경로로 이동하는 함수
+  const moveToFileRoute = useCallback((file: GPXFile) => {
+    if (!mapInstance.current || !window.kakao || !file.data.points.length) return;
+
+    clearRoutes();
+
+    const path = file.data.points.map(
+      point => new window.kakao.maps.LatLng(point.lat, point.lng)
+    );
+
+    const polyline = new window.kakao.maps.Polyline({
+      path: path,
+      strokeWeight: 4,
+      strokeColor: file.color,
+      strokeOpacity: 0.8,
+      strokeStyle: 'solid',
+    });
+
+    polyline.setMap(mapInstance.current);
+    polylines.current.push(polyline);
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    path.forEach(point => bounds.extend(point));
+    mapInstance.current.setBounds(bounds);
+  }, []);
+
+  // 부모 컴포넌트에서 호출할 수 있는 메서드 노출
+  useImperativeHandle(ref, () => ({
+    moveToCurrentLocation,
+    moveToFileRoute
+  }), [moveToCurrentLocation, moveToFileRoute]);
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (locationRequestRef.current.errorTimeout) {
+        clearTimeout(locationRequestRef.current.errorTimeout);
+      }
+    };
+  }, []);
 
   // 카카오 맵 초기화
   useEffect(() => {
@@ -228,31 +311,6 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(({ activeFile, isSidebarCol
   const clearRoutes = () => {
     polylines.current.forEach(polyline => polyline.setMap(null));
     polylines.current = [];
-  };
-
-  const moveToFileRoute = (file: GPXFile) => {
-    if (!mapInstance.current || !window.kakao || !file.data.points.length) return;
-
-    clearRoutes();
-
-    const path = file.data.points.map(
-      point => new window.kakao.maps.LatLng(point.lat, point.lng)
-    );
-
-    const polyline = new window.kakao.maps.Polyline({
-      path: path,
-      strokeWeight: 4,
-      strokeColor: file.color,
-      strokeOpacity: 0.8,
-      strokeStyle: 'solid',
-    });
-
-    polyline.setMap(mapInstance.current);
-    polylines.current.push(polyline);
-
-    const bounds = new window.kakao.maps.LatLngBounds();
-    path.forEach(point => bounds.extend(point));
-    mapInstance.current.setBounds(bounds);
   };
 
   return <MapContainer ref={mapContainer} />;
