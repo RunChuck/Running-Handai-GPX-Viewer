@@ -1,15 +1,15 @@
-import { useState, useRef } from 'react';
-import styled from '@emotion/styled';
-import Sidebar from './Sidebar';
-import MapView from './MapView';
-import Toast from './Toast';
-import type { MapViewRef } from './MapView';
-import type { GPXFile } from '../types/gpx';
+import { useState, useRef } from "react";
+import styled from "@emotion/styled";
+import Sidebar from "./Sidebar";
+import MapView from "./MapView";
+import Toast from "./Toast";
+import type { MapViewRef } from "./MapView";
+import type { GPXFile } from "../types/gpx";
 
 const Container = styled.div`
   display: flex;
   height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   position: relative;
 `;
 
@@ -18,7 +18,7 @@ const GPXViewer = () => {
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(8);
-  const [toastMessage, setToastMessage] = useState<string>('');
+  const [toastMessage, setToastMessage] = useState<string>("");
   const [isToastVisible, setIsToastVisible] = useState(false);
   const mapViewRef = useRef<MapViewRef>(null);
 
@@ -32,7 +32,7 @@ const GPXViewer = () => {
   };
 
   const handleFileUpload = (newFile: GPXFile) => {
-    setGpxFiles(prev => [...prev, newFile]);
+    setGpxFiles((prev) => [...prev, newFile]);
     setActiveFileId(newFile.id);
   };
 
@@ -45,9 +45,9 @@ const GPXViewer = () => {
   };
 
   const handleFileDelete = (fileId: string) => {
-    setGpxFiles(prev => {
-      const newFiles = prev.filter(file => file.id !== fileId);
-      
+    setGpxFiles((prev) => {
+      const newFiles = prev.filter((file) => file.id !== fileId);
+
       // 삭제된 파일이 현재 활성 파일이었다면
       if (activeFileId === fileId) {
         // 다른 파일이 있다면 첫 번째 파일을 활성화
@@ -57,7 +57,7 @@ const GPXViewer = () => {
           setActiveFileId(null);
         }
       }
-      
+
       return newFiles;
     });
 
@@ -83,18 +83,18 @@ const GPXViewer = () => {
   };
 
   // 현재 활성 파일 찾기
-  const activeFile = gpxFiles.find(file => file.id === activeFileId) || null;
+  const activeFile = gpxFiles.find((file) => file.id === activeFileId) || null;
 
   return (
     <Container>
-      <Toast 
+      <Toast
         message={toastMessage}
         type="error"
         isVisible={isToastVisible}
         onClose={closeToast}
         duration={3000}
       />
-      
+
       <Sidebar
         gpxFiles={gpxFiles}
         activeFileId={activeFileId}
@@ -105,10 +105,11 @@ const GPXViewer = () => {
         onFileDelete={handleFileDelete}
         onToggle={handleSidebarToggle}
         onLocationRequest={handleLocationRequest}
+        onError={showToast}
       />
-      <MapView 
+      <MapView
         ref={mapViewRef}
-        activeFile={activeFile} 
+        activeFile={activeFile}
         isSidebarCollapsed={isSidebarCollapsed}
         onZoomChange={handleZoomChange}
         onLocationError={handleLocationError}

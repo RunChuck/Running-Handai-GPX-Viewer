@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="node" />
 
 interface ImportMetaEnv {
   readonly VITE_KAKAO_MAP_API_KEY: string;
@@ -30,6 +31,7 @@ declare global {
           strokeOpacity: number;
           strokeStyle: string;
         }) => kakao.maps.Polyline;
+
         event: {
           addListener: (target: any, type: string, handler: () => void) => void;
         };
@@ -45,15 +47,15 @@ declare global {
       setCenter(latlng: LatLng): void;
       relayout(): void;
     }
-    
+
     class LatLng {
       constructor(lat: number, lng: number);
     }
-    
+
     class LatLngBounds {
       extend(latlng: LatLng): void;
     }
-    
+
     class Polyline {
       setMap(map: Map | null): void;
     }
