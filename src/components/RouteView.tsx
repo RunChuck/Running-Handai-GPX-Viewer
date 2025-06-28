@@ -1,5 +1,4 @@
 import { useState } from "react";
-import styled from "@emotion/styled";
 import {
   HiPlus,
   HiTrash,
@@ -13,6 +12,7 @@ import {
   downloadGPX,
 } from "../utils/openRouteService";
 import type { GPXFile } from "../types/gpx";
+import * as S from "../styles/RouteView.styled";
 
 interface RoutePoint {
   id: string;
@@ -21,266 +21,17 @@ interface RoutePoint {
   lng?: number;
 }
 
-interface RouteViewerProps {
+interface RouteViewProps {
   onRouteGenerated: (route: GPXFile) => void;
   onLocationError: (error: string) => void;
   onRouteSelect?: (route: GPXFile) => void;
 }
 
-const Container = styled.div`
-  padding: 24px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-`;
-
-const Title = styled.h2`
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 20px;
-  font-weight: 600;
-`;
-
-const Section = styled.div`
-  margin-bottom: 24px;
-`;
-
-const SectionTitle = styled.h3`
-  margin: 0 0 12px 0;
-  color: #666;
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const RoutePointContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-`;
-
-const RoutePointItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-`;
-
-const RoutePointInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: #333;
-
-  &::placeholder {
-    color: #999;
-  }
-`;
-
-const PointTypeIcon = styled.div<{ type: "start" | "waypoint" | "end" }>`
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 600;
-  color: white;
-  background: ${(props) => {
-    switch (props.type) {
-      case "start":
-        return "#22c55e";
-      case "waypoint":
-        return "#3b82f6";
-      case "end":
-        return "#ef4444";
-      default:
-        return "#6b7280";
-    }
-  }};
-`;
-
-const ActionButton = styled.button`
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: #666;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f5f5f5;
-    color: #4561ff;
-  }
-`;
-
-const DeleteButton = styled(ActionButton)`
-  &:hover {
-    background: #fee;
-    color: #ef4444;
-  }
-`;
-
-const AddWaypointButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: transparent;
-  color: #4561ff;
-  border: 1px dashed #4561ff;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  width: 100%;
-
-  &:hover {
-    background: #f8f9ff;
-  }
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-`;
-
-const GenerateButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #4561ff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.2s;
-  width: 100%;
-
-  &:hover {
-    background: #3b4de8;
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-`;
-
-const DownloadButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: transparent;
-  color: #4561ff;
-  border: 2px solid #4561ff;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.2s;
-  width: 100%;
-
-  &:hover {
-    background: #4561ff;
-    color: white;
-  }
-
-  &:disabled {
-    border-color: #ccc;
-    color: #ccc;
-    cursor: not-allowed;
-  }
-`;
-
-const RouteInfo = styled.div`
-  background: #f8f9ff;
-  border: 1px solid #e0e6ff;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-`;
-
-const RouteInfoTitle = styled.h4`
-  margin: 0 0 8px 0;
-  color: #4561ff;
-  font-size: 14px;
-  font-weight: 600;
-`;
-
-const RouteInfoItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 14px;
-  color: #666;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const RouteInfoValue = styled.span`
-  color: #333;
-  font-weight: 500;
-`;
-
-const OptionSection = styled.div`
-  margin-bottom: 16px;
-`;
-
-const OptionLabel = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  color: #666;
-  font-size: 14px;
-  font-weight: 500;
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333;
-  background: white;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #4561ff;
-  }
-`;
-
-const RouteViewer = ({
+const RouteView = ({
   onRouteGenerated,
   onLocationError,
   onRouteSelect,
-}: RouteViewerProps) => {
+}: RouteViewProps) => {
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([
     { id: "1", address: "" },
     { id: "2", address: "" },
@@ -361,9 +112,9 @@ const RouteViewer = ({
       // 파일명에 사용할 수 없는 문자 제거 및 정리
       const sanitizeFileName = (name: string): string => {
         return name
-          .replace(/[<>:"/\\|?*]/g, "") // 파일명에 사용할 수 없는 문자 제거
-          .replace(/\s+/g, "_") // 공백을 언더스코어로 변환
-          .replace(/_{2,}/g, "_") // 연속된 언더스코어를 하나로 변환
+          .replace(/[<>:"/\\|?*]/g, "")
+          .replace(/\s+/g, "_")
+          .replace(/_{2,}/g, "_")
           .trim();
       };
 
@@ -458,18 +209,18 @@ const RouteViewer = ({
   };
 
   return (
-    <Container>
-      <Title>경로 생성</Title>
+    <S.Container>
+      <S.Title>경로 생성</S.Title>
 
-      <Section>
-        <SectionTitle>지점 설정</SectionTitle>
-        <RoutePointContainer>
+      <S.Section>
+        <S.SectionTitle>지점 설정</S.SectionTitle>
+        <S.RoutePointContainer>
           {routePoints.map((point, index) => (
-            <RoutePointItem key={point.id}>
-              <PointTypeIcon type={getPointType(index)}>
+            <S.RoutePointItem key={point.id}>
+              <S.PointTypeIcon type={getPointType(index)}>
                 {getPointLabel(index)}
-              </PointTypeIcon>
-              <RoutePointInput
+              </S.PointTypeIcon>
+              <S.RoutePointInput
                 type="text"
                 placeholder={
                   index === 0
@@ -482,25 +233,25 @@ const RouteViewer = ({
                 onChange={(e) => updateRoutePoint(point.id, e.target.value)}
               />
               {routePoints.length > 2 && getPointType(index) === "waypoint" && (
-                <DeleteButton onClick={() => removeWaypoint(point.id)}>
+                <S.DeleteButton onClick={() => removeWaypoint(point.id)}>
                   <HiTrash />
-                </DeleteButton>
+                </S.DeleteButton>
               )}
-            </RoutePointItem>
+            </S.RoutePointItem>
           ))}
-        </RoutePointContainer>
+        </S.RoutePointContainer>
 
-        <AddWaypointButton onClick={addWaypoint}>
+        <S.AddWaypointButton onClick={addWaypoint}>
           <HiPlus />
           경유지 추가
-        </AddWaypointButton>
-      </Section>
+        </S.AddWaypointButton>
+      </S.Section>
 
-      <Section>
-        <SectionTitle>경로 옵션</SectionTitle>
-        <OptionSection>
-          <OptionLabel>이동 방식</OptionLabel>
-          <Select
+      <S.Section>
+        <S.SectionTitle>경로 옵션</S.SectionTitle>
+        <S.OptionSection>
+          <S.OptionLabel>이동 방식</S.OptionLabel>
+          <S.Select
             value={routeProfile}
             onChange={(e) => setRouteProfile(e.target.value)}
           >
@@ -508,52 +259,52 @@ const RouteViewer = ({
             <option value="foot-hiking">러닝</option>
             <option value="cycling-regular">자전거</option>
             <option value="driving-car">자동차</option>
-          </Select>
-        </OptionSection>
-      </Section>
+          </S.Select>
+        </S.OptionSection>
+      </S.Section>
 
       {lastGeneratedRoute && (
-        <Section>
-          <SectionTitle>경로 정보</SectionTitle>
-          <RouteInfo>
-            <RouteInfoTitle>생성된 경로</RouteInfoTitle>
-            <RouteInfoItem>
+        <S.Section>
+          <S.SectionTitle>경로 정보</S.SectionTitle>
+          <S.RouteInfo>
+            <S.RouteInfoTitle>생성된 경로</S.RouteInfoTitle>
+            <S.RouteInfoItem>
               <span>총 거리:</span>
-              <RouteInfoValue>
+              <S.RouteInfoValue>
                 {lastGeneratedRoute.distance.toFixed(2)} km
-              </RouteInfoValue>
-            </RouteInfoItem>
-            <RouteInfoItem>
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+            <S.RouteInfoItem>
               <span>예상 시간:</span>
-              <RouteInfoValue>
+              <S.RouteInfoValue>
                 {formatDuration(lastGeneratedRoute.duration)}
-              </RouteInfoValue>
-            </RouteInfoItem>
-            <RouteInfoItem>
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+            <S.RouteInfoItem>
               <span>포인트 수:</span>
-              <RouteInfoValue>
+              <S.RouteInfoValue>
                 {lastGeneratedRoute.route.data.points.length}개
-              </RouteInfoValue>
-            </RouteInfoItem>
-          </RouteInfo>
-        </Section>
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+          </S.RouteInfo>
+        </S.Section>
       )}
 
-      <ButtonGroup>
-        <GenerateButton onClick={generateRoute} disabled={isGenerating}>
+      <S.ButtonGroup>
+        <S.GenerateButton onClick={generateRoute} disabled={isGenerating}>
           <HiMapPin />
           {isGenerating ? "경로 생성 중..." : "경로 생성"}
-        </GenerateButton>
+        </S.GenerateButton>
 
         {lastGeneratedRoute && (
-          <DownloadButton onClick={handleDownload}>
+          <S.DownloadButton onClick={handleDownload}>
             <HiArrowDownTray />
             GPX 파일 다운로드
-          </DownloadButton>
+          </S.DownloadButton>
         )}
-      </ButtonGroup>
-    </Container>
+      </S.ButtonGroup>
+    </S.Container>
   );
 };
 
-export default RouteViewer;
+export default RouteView;

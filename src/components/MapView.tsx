@@ -5,8 +5,8 @@ import {
   forwardRef,
   useCallback,
 } from "react";
-import styled from "@emotion/styled";
 import type { GPXFile } from "../types/gpx";
+import * as S from "../styles/MapView.styled";
 
 interface MapViewProps {
   activeFile: GPXFile | null;
@@ -19,54 +19,6 @@ export interface MapViewRef {
   moveToCurrentLocation: () => void;
   moveToFileRoute: (file: GPXFile) => void;
 }
-
-const MapContainer = styled.div`
-  flex: 1;
-  background: #f5f5f5;
-  position: relative;
-`;
-
-const RouteInfoOverlay = styled.div`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  min-width: 200px;
-  z-index: 1000;
-`;
-
-const RouteInfoTitle = styled.h3`
-  margin: 0 0 12px 0;
-  color: #4561ff;
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const RouteInfoItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #666;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-const RouteInfoValue = styled.span`
-  color: #333;
-  font-weight: 600;
-`;
 
 const MapView = forwardRef<MapViewRef, MapViewProps>(
   ({ activeFile, isSidebarCollapsed, onZoomChange, onLocationError }, ref) => {
@@ -384,29 +336,31 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
     };
 
     return (
-      <MapContainer ref={mapContainer}>
+      <S.MapContainer ref={mapContainer}>
         {activeFile?.routeInfo && (
-          <RouteInfoOverlay>
-            <RouteInfoTitle>📍 경로 정보</RouteInfoTitle>
-            <RouteInfoItem>
+          <S.RouteInfoOverlay>
+            <S.RouteInfoTitle>📍 경로 정보</S.RouteInfoTitle>
+            <S.RouteInfoItem>
               <span>총 거리:</span>
-              <RouteInfoValue>
+              <S.RouteInfoValue>
                 {activeFile.routeInfo.distance.toFixed(2)} km
-              </RouteInfoValue>
-            </RouteInfoItem>
-            <RouteInfoItem>
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+            <S.RouteInfoItem>
               <span>예상 시간:</span>
-              <RouteInfoValue>
+              <S.RouteInfoValue>
                 {formatDuration(activeFile.routeInfo.duration)}
-              </RouteInfoValue>
-            </RouteInfoItem>
-            <RouteInfoItem>
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+            <S.RouteInfoItem>
               <span>포인트 수:</span>
-              <RouteInfoValue>{activeFile.data.points.length}개</RouteInfoValue>
-            </RouteInfoItem>
-          </RouteInfoOverlay>
+              <S.RouteInfoValue>
+                {activeFile.data.points.length}개
+              </S.RouteInfoValue>
+            </S.RouteInfoItem>
+          </S.RouteInfoOverlay>
         )}
-      </MapContainer>
+      </S.MapContainer>
     );
   }
 );
