@@ -4,14 +4,16 @@ const ORS_BASE_URL = "https://api.openrouteservice.org";
 interface Coordinate {
   lat: number;
   lng: number;
+  elevation?: number;
 }
 
 // Polyline 디코딩 함수
-const decodePolyline = (encoded: string): Array<[number, number]> => {
-  const coordinates: Array<[number, number]> = [];
+const decodePolyline = (encoded: string, is3D: boolean = false): Array<[number, number] | [number, number, number]> => {
+  const coordinates: Array<[number, number] | [number, number, number]> = [];
   let index = 0;
   let lat = 0;
   let lng = 0;
+  let elevation = 0;
 
   while (index < encoded.length) {
     // Decode latitude
@@ -37,9 +39,23 @@ const decodePolyline = (encoded: string): Array<[number, number]> => {
     const deltaLng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
     lng += deltaLng;
 
-    coordinates.push([lng / 1e5, lat / 1e5]);
+    if (is3D && index < encoded.length) {
+      // Decode elevation
+      shift = 0;
+      result = 0;
+      do {
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      const deltaElevation = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+      elevation += deltaElevation;
+      
+      coordinates.push([lng / 1e5, lat / 1e5, elevation / 100]);
+    } else {
+      coordinates.push([lng / 1e5, lat / 1e5]);
+    }
   }
-
   return coordinates;
 };
 
@@ -109,9 +125,10 @@ export const calculateRoute = async (
 
     const requestBody = {
       coordinates: coordinates.map((coord) => [coord.lng, coord.lat]),
-      format: "json",
+      format: "geojson",
       instructions: false,
       geometry_simplify: false,
+      elevation: true,
     };
 
     const response = await fetch(url, {
@@ -135,38 +152,44 @@ export const calculateRoute = async (
     }
 
     const data = await response.json();
-    console.log("OpenRouteService 경로 API 응답:", data);
 
     if (!data.routes || data.routes.length === 0) {
       throw new Error("경로를 찾을 수 없습니다.");
     }
 
     const route = data.routes[0];
-    console.log("Route 데이터:", route);
-    console.log("Geometry 타입:", typeof route.geometry);
-    console.log("Geometry 내용:", route.geometry);
-
+    
     // geometry 구조 확인 및 처리
-    let routeCoordinates: Array<{ lat: number; lng: number }>;
+    let routeCoordinates: Array<{ lat: number; lng: number; elevation?: number }>;
 
     if (typeof route.geometry === "string") {
-      // encoded polyline - 디코딩 처리
-      console.log("Encoded polyline 디코딩 중...");
-      const decodedCoords = decodePolyline(route.geometry);
-      routeCoordinates = decodedCoords.map(([lng, lat]) => ({
-        lat,
-        lng,
-      }));
+      // encoded polyline - 디코딩 처리 (elevation=true일 때 3D 디코딩)
+      const decodedCoords = decodePolyline(route.geometry, true);
+      routeCoordinates = decodedCoords.map((coord) => {
+        if (coord.length === 3) {
+          return {
+            lat: coord[1],
+            lng: coord[0],
+            elevation: coord[2],
+          };
+        } else {
+          return {
+            lat: coord[1],
+            lng: coord[0],
+          };
+        }
+      });
     } else if (
       route.geometry &&
       typeof route.geometry === "object" &&
       route.geometry.coordinates
     ) {
-      // GeoJSON 형태 (혹시 있을 경우를 대비)
+      // GeoJSON 형태 - 고도 정보 포함 가능
       routeCoordinates = route.geometry.coordinates.map(
-        (coord: [number, number]) => ({
+        (coord: [number, number] | [number, number, number]) => ({
           lat: coord[1],
           lng: coord[0],
+          elevation: coord.length > 2 ? coord[2] : undefined,
         })
       );
     } else {
@@ -202,7 +225,7 @@ export const planRoute = async (
   }
 
   // 1단계: 모든 주소를 좌표로 변환
-  console.log("주소를 좌표로 변환 중...");
+  // console.log("주소를 좌표로 변환 중...");
   const geocodedResults: GeocodeResult[] = [];
 
   for (const address of addresses) {
@@ -214,7 +237,7 @@ export const planRoute = async (
   }
 
   // 2단계: 경로 계산
-  console.log("경로 계산 중...");
+  // console.log("경로 계산 중...");
   const coordinates = geocodedResults.map((result) => ({
     lat: result.lat,
     lng: result.lng,
@@ -270,7 +293,7 @@ export const convertToGPX = (
 
   coordinates.forEach((coord) => {
     gpxContent += `
-      <trkpt lat="${coord.lat}" lon="${coord.lng}"></trkpt>`;
+      <trkpt lat="${coord.lat}" lon="${coord.lng}"${coord.elevation ? ` elevation="${coord.elevation}"` : ''}></trkpt>`;
   });
 
   gpxContent += `
