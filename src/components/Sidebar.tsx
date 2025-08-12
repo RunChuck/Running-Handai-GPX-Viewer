@@ -12,6 +12,7 @@ import {
 import { parseGPX } from "../utils/gpxParser";
 import RouteView from "./RouteView";
 import type { GPXFile } from "../types/gpx";
+import type { MapViewRef } from "./MapView";
 import * as S from "../styles/Sidebar.styled";
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ interface SidebarProps {
   onToggle: (collapsed: boolean) => void;
   onLocationRequest: () => void;
   onError?: (message: string) => void;
+  mapViewRef: React.RefObject<MapViewRef>;
 }
 
 const Sidebar = ({
@@ -38,6 +40,7 @@ const Sidebar = ({
   onToggle,
   onLocationRequest,
   onError,
+  mapViewRef,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<"gpx" | "route">("gpx");
   const [error, setError] = useState<string | null>(null);
@@ -95,9 +98,7 @@ const Sidebar = ({
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -153,7 +154,7 @@ const Sidebar = ({
 
   const handleRouteGenerated = (route: GPXFile) => {
     onFileUpload(route);
-    setActiveTab("gpx"); // 경로 생성 후 GPX 탭으로 이동
+    // 핀 모드에서는 탭을 자동 변경 X
   };
 
   const handleRouteSelect = (route: GPXFile) => {
@@ -213,17 +214,11 @@ const Sidebar = ({
           </S.SidebarHeader>
 
           <S.TabContainer>
-            <S.Tab
-              active={activeTab === "gpx"}
-              onClick={() => setActiveTab("gpx")}
-            >
+            <S.Tab active={activeTab === "gpx"} onClick={() => setActiveTab("gpx")}>
               <HiDocumentText />
               GPX 파일
             </S.Tab>
-            <S.Tab
-              active={activeTab === "route"}
-              onClick={() => setActiveTab("route")}
-            >
+            <S.Tab active={activeTab === "route"} onClick={() => setActiveTab("route")}>
               <HiMap />
               경로 생성
             </S.Tab>
@@ -257,31 +252,19 @@ const Sidebar = ({
                   </S.ZoomLevelValue>
                 </S.ZoomLevelContainer>
 
-                <S.LocationButton
-                  onClick={handleLocationClick}
-                  title="현재 위치로 이동"
-                >
+                <S.LocationButton onClick={handleLocationClick} title="현재 위치로 이동">
                   <HiMapPin size={16} />
                 </S.LocationButton>
 
-                <S.FileInput
-                  id="gpx-file"
-                  type="file"
-                  accept=".gpx"
-                  onChange={handleFileUpload}
-                />
+                <S.FileInput id="gpx-file" type="file" accept=".gpx" onChange={handleFileUpload} />
 
-                {loading && (
-                  <S.LoadingMessage>GPX 파일을 처리하는 중...</S.LoadingMessage>
-                )}
+                {loading && <S.LoadingMessage>GPX 파일을 처리하는 중...</S.LoadingMessage>}
                 {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
 
                 <S.FileListContainer>
                   {gpxFiles.length > 0 ? (
                     <>
-                      <S.FileListTitle>
-                        업로드된 파일 ({gpxFiles.length})
-                      </S.FileListTitle>
+                      <S.FileListTitle>업로드된 파일 ({gpxFiles.length})</S.FileListTitle>
                       {gpxFiles.map((file) => (
                         <S.FileItem
                           key={file.id}
@@ -324,6 +307,7 @@ const Sidebar = ({
                 onRouteGenerated={handleRouteGenerated}
                 onLocationError={handleLocationError}
                 onRouteSelect={handleRouteSelect}
+                mapViewRef={mapViewRef}
               />
             )}
           </S.TabContent>

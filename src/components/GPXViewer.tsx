@@ -106,6 +106,7 @@ const GPXViewer = () => {
         onToggle={handleSidebarToggle}
         onLocationRequest={handleLocationRequest}
         onError={showToast}
+        mapViewRef={mapViewRef}
       />
       <MapView
         ref={mapViewRef}
