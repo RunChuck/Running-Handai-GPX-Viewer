@@ -16,6 +16,7 @@ export interface GPXFile {
   uploadTime: Date;
   color: string;
   downloadContent?: string;
+  isFromPinMode?: boolean;
   // 경로 정보 (OpenRouteService로 생성된 경우)
   routeInfo?: {
     distance: number; // km

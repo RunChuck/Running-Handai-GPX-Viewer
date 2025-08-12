@@ -134,6 +134,47 @@ export const ButtonGroup = styled.div`
   margin-top: auto;
 `;
 
+export const PinModeButton = styled.button<{ active?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: ${(props) => (props.active ? "#4561ff" : "transparent")};
+  color: ${(props) => (props.active ? "white" : "#4561ff")};
+  border: 1px solid #4561ff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  width: 100%;
+  margin-bottom: 8px;
+
+  &:hover {
+    background: ${(props) => (props.active ? "#3b4de8" : "#f8f9ff")};
+  }
+`;
+
+export const ClearPinsButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  width: 100%;
+
+  &:hover {
+    background: #fef2f2;
+  }
+`;
+
 export const GenerateButton = styled.button`
   display: flex;
   align-items: center;
@@ -247,4 +288,15 @@ export const Select = styled.select`
     outline: none;
     border-color: #4561ff;
   }
+`;
+
+export const PinInfo = styled.div`
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f8ff;
+  border: 1px solid #e0e6ff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #4561ff;
+  text-align: center;
 `;

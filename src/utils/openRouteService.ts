@@ -8,7 +8,10 @@ interface Coordinate {
 }
 
 // Polyline 디코딩 함수
-const decodePolyline = (encoded: string, is3D: boolean = false): Array<[number, number] | [number, number, number]> => {
+const decodePolyline = (
+  encoded: string,
+  is3D: boolean = false
+): Array<[number, number] | [number, number, number]> => {
   const coordinates: Array<[number, number] | [number, number, number]> = [];
   let index = 0;
   let lat = 0;
@@ -50,7 +53,7 @@ const decodePolyline = (encoded: string, is3D: boolean = false): Array<[number, 
       } while (byte >= 0x20);
       const deltaElevation = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
       elevation += deltaElevation;
-      
+
       coordinates.push([lng / 1e5, lat / 1e5, elevation / 100]);
     } else {
       coordinates.push([lng / 1e5, lat / 1e5]);
@@ -72,9 +75,7 @@ interface RouteResponse {
 }
 
 // 주소를 좌표로 변환하는 함수 (Geocoding)
-export const geocodeAddress = async (
-  address: string
-): Promise<GeocodeResult | null> => {
+export const geocodeAddress = async (address: string): Promise<GeocodeResult | null> => {
   if (!address.trim()) return null;
 
   try {
@@ -117,9 +118,7 @@ export const calculateRoute = async (
   }
 
   try {
-    const coordinateString = coordinates
-      .map((coord) => `${coord.lng},${coord.lat}`)
-      .join("|");
+    // const coordinateString = coordinates.map((coord) => `${coord.lng},${coord.lat}`).join("|");
 
     const url = `${ORS_BASE_URL}/v2/directions/${profile}`;
 
@@ -158,7 +157,7 @@ export const calculateRoute = async (
     }
 
     const route = data.routes[0];
-    
+
     // geometry 구조 확인 및 처리
     let routeCoordinates: Array<{ lat: number; lng: number; elevation?: number }>;
 
@@ -179,11 +178,7 @@ export const calculateRoute = async (
           };
         }
       });
-    } else if (
-      route.geometry &&
-      typeof route.geometry === "object" &&
-      route.geometry.coordinates
-    ) {
+    } else if (route.geometry && typeof route.geometry === "object" && route.geometry.coordinates) {
       // GeoJSON 형태 - 고도 정보 포함 가능
       routeCoordinates = route.geometry.coordinates.map(
         (coord: [number, number] | [number, number, number]) => ({
@@ -278,9 +273,7 @@ export const convertToGPX = (
         .join(", ")}`;
     }
     if (geocodedAddresses.length > 1) {
-      gpxContent += `, 도착지: ${
-        geocodedAddresses[geocodedAddresses.length - 1].displayName
-      }`;
+      gpxContent += `, 도착지: ${geocodedAddresses[geocodedAddresses.length - 1].displayName}`;
     }
     gpxContent += `</keywords>`;
   }
@@ -293,7 +286,9 @@ export const convertToGPX = (
 
   coordinates.forEach((coord) => {
     gpxContent += `
-      <trkpt lat="${coord.lat}" lon="${coord.lng}"${coord.elevation ? ` elevation="${coord.elevation}"` : ''}></trkpt>`;
+      <trkpt lat="${coord.lat}" lon="${coord.lng}"${
+      coord.elevation ? ` elevation="${coord.elevation}"` : ""
+    }></trkpt>`;
   });
 
   gpxContent += `
@@ -302,6 +297,44 @@ export const convertToGPX = (
 </gpx>`;
 
   return gpxContent;
+};
+
+// 좌표 기반 경로 생성 함수 (핀 모드용)
+export const planRouteWithCoordinates = async (
+  coordinates: number[][], // [lng, lat] 형태
+  profile: string = "foot-walking"
+): Promise<{
+  coordinates: Coordinate[];
+  geocodedAddresses: GeocodeResult[];
+  distance: number;
+  duration: number;
+}> => {
+  if (coordinates.length < 2) {
+    throw new Error("최소 2개의 지점이 필요합니다.");
+  }
+
+  // 좌표를 Coordinate 형태로 변환
+  const coordsForRoute = coordinates.map(([lng, lat]) => ({
+    lat,
+    lng,
+  }));
+
+  // 경로 계산
+  const routeResult = await calculateRoute(coordsForRoute, profile);
+
+  // 핀 좌표에 대한 가짜 geocoded 주소 생성
+  const geocodedAddresses: GeocodeResult[] = coordinates.map(([lng, lat], index) => ({
+    lat,
+    lng,
+    displayName: `핀 ${index + 1} (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+  }));
+
+  return {
+    coordinates: routeResult.coordinates,
+    geocodedAddresses,
+    distance: routeResult.distance,
+    duration: routeResult.duration,
+  };
 };
 
 // GPX 파일 다운로드 함수
