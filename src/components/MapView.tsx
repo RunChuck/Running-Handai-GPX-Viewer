@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-  useCallback,
-} from "react";
+import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from "react";
 import type { GPXFile } from "../types/gpx";
 import * as S from "../styles/MapView.styled";
 
@@ -18,14 +12,21 @@ interface MapViewProps {
 export interface MapViewRef {
   moveToCurrentLocation: () => void;
   moveToFileRoute: (file: GPXFile) => void;
+  clearPins: () => void;
+  setPinMode: (enabled: boolean, onPinAdded?: (lat: number, lng: number) => void) => void;
 }
 
 const MapView = forwardRef<MapViewRef, MapViewProps>(
-  ({ activeFile, isSidebarCollapsed, onZoomChange, onLocationError }, ref) => {
+  ({ activeFile, onZoomChange, onLocationError }, ref) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<kakao.maps.Map | null>(null);
     const polylines = useRef<kakao.maps.Polyline[]>([]);
     const resizeObserver = useRef<ResizeObserver | null>(null);
+    const pinMarkers = useRef<kakao.maps.Marker[]>([]);
+    const pinModeState = useRef<{
+      enabled: boolean;
+      onPinAdded?: (lat: number, lng: number) => void;
+    }>({ enabled: false });
     const locationRequestRef = useRef<{
       isRequesting: boolean;
       hasSucceeded: boolean;
@@ -80,10 +81,7 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
           locationRequestRef.current.hasSucceeded = true;
 
           if (mapInstance.current && window.kakao) {
-            const currentPosition = new window.kakao.maps.LatLng(
-              latitude,
-              longitude
-            );
+            const currentPosition = new window.kakao.maps.LatLng(latitude, longitude);
             mapInstance.current.setCenter(currentPosition);
             mapInstance.current.setLevel(3); // 현재 위치 확대
           }
@@ -140,9 +138,8 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
     }, [onLocationError]);
 
     // 파일 경로로 이동하는 함수
-    const moveToFileRoute = useCallback((file: GPXFile) => {
-      if (!mapInstance.current || !window.kakao || !file.data.points.length)
-        return;
+    const moveToFileRoute = useCallback((file: GPXFile, autoFit?: boolean) => {
+      if (!mapInstance.current || !window.kakao || !file.data.points.length) return;
 
       clearRoutes();
 
@@ -161,10 +158,29 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
       polyline.setMap(mapInstance.current);
       polylines.current.push(polyline);
 
-      const bounds = new window.kakao.maps.LatLngBounds();
-      path.forEach((point) => bounds.extend(point));
-      mapInstance.current.setBounds(bounds);
+      // 핀 모드로 아니거나 autoFit이 명시적으로 true인 경우에만 지도 범위 자동 조정
+      const shouldAutoFit = autoFit !== undefined ? autoFit : !file.isFromPinMode;
+      if (shouldAutoFit) {
+        const bounds = new window.kakao.maps.LatLngBounds();
+        path.forEach((point) => bounds.extend(point));
+        mapInstance.current.setBounds(bounds);
+      }
     }, []);
+
+    // 핀 마커를 모두 제거하는 함수
+    const clearPins = useCallback(() => {
+      pinMarkers.current.forEach((marker) => marker.setMap(null));
+      pinMarkers.current = [];
+    }, []);
+
+    // 핀 모드 설정 함수
+    const setPinMode = useCallback(
+      (enabled: boolean, onPinAdded?: (lat: number, lng: number) => void) => {
+        console.log("핀 모드 설정:", enabled, !!onPinAdded);
+        pinModeState.current = { enabled, onPinAdded };
+      },
+      []
+    );
 
     // 부모 컴포넌트에서 호출할 수 있는 메서드 노출
     useImperativeHandle(
@@ -172,8 +188,10 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
       () => ({
         moveToCurrentLocation,
         moveToFileRoute,
+        clearPins,
+        setPinMode,
       }),
-      [moveToCurrentLocation, moveToFileRoute]
+      [moveToCurrentLocation, moveToFileRoute, clearPins, setPinMode]
     );
 
     // 컴포넌트 언마운트 시 타이머 정리
@@ -227,8 +245,42 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
               }
             });
 
+            // 지도 클릭 이벤트 리스너 추가
+            const clickHandler = (mouseEvent: any) => {
+              console.log("지도 클릭됨:", pinModeState.current);
+
+              if (
+                !pinModeState.current.enabled ||
+                !pinModeState.current.onPinAdded ||
+                !window.kakao
+              ) {
+                console.log("핀 모드가 비활성화되어 있거나 콜백이 없습니다.");
+                return;
+              }
+
+              const latlng = mouseEvent.latLng;
+              const lat = latlng.getLat();
+              const lng = latlng.getLng();
+
+              console.log("핀 생성:", lat, lng);
+
+              // 마커 생성
+              const marker = new window.kakao.maps.Marker({
+                position: latlng,
+                map: map,
+              });
+
+              pinMarkers.current.push(marker);
+              pinModeState.current.onPinAdded(lat, lng);
+            };
+
+            window.kakao.maps.event.addListener(map, "click", clickHandler);
+
             // ResizeObserver 설정
             setupResizeObserver();
+
+            // 맵 초기화 완료 로그
+            console.log("카카오맵 초기화 및 이벤트 리스너 등록 완료");
           });
         } else {
           console.error("카카오 맵을 로드할 수 없습니다.");
@@ -236,9 +288,7 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
       };
 
       const onErrorKakaoMap = () => {
-        console.error(
-          "카카오 맵 스크립트 로드에 실패했습니다. API 키를 확인해주세요."
-        );
+        console.error("카카오 맵 스크립트 로드에 실패했습니다. API 키를 확인해주세요.");
       };
 
       mapScript.addEventListener("load", onLoadKakaoMap);
@@ -311,11 +361,15 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
       polyline.setMap(mapInstance.current);
       polylines.current.push(polyline);
 
-      // 파일 선택시 항상 해당 경로가 보이도록 지도 범위 조정
-      const bounds = new window.kakao.maps.LatLngBounds();
-      path.forEach((point) => bounds.extend(point));
-      mapInstance.current.setBounds(bounds);
-      console.log(`경로 표시 및 이동 완료: ${file.data.name}`);
+      // 핀 모드로 생성된 경로가 아닌 경우에만 지도 범위 조정
+      if (!file.isFromPinMode) {
+        const bounds = new window.kakao.maps.LatLngBounds();
+        path.forEach((point) => bounds.extend(point));
+        mapInstance.current.setBounds(bounds);
+        console.log(`경로 표시 및 이동 완료: ${file.data.name}`);
+      } else {
+        console.log(`핀 모드 경로 표시 완료 (범위 조정 없음): ${file.data.name}`);
+      }
     };
 
     // 지도에서 모든 경로 제거
@@ -342,21 +396,15 @@ const MapView = forwardRef<MapViewRef, MapViewProps>(
             <S.RouteInfoTitle>📍 경로 정보</S.RouteInfoTitle>
             <S.RouteInfoItem>
               <span>총 거리:</span>
-              <S.RouteInfoValue>
-                {activeFile.routeInfo.distance.toFixed(2)} km
-              </S.RouteInfoValue>
+              <S.RouteInfoValue>{activeFile.routeInfo.distance.toFixed(2)} km</S.RouteInfoValue>
             </S.RouteInfoItem>
             <S.RouteInfoItem>
               <span>예상 시간:</span>
-              <S.RouteInfoValue>
-                {formatDuration(activeFile.routeInfo.duration)}
-              </S.RouteInfoValue>
+              <S.RouteInfoValue>{formatDuration(activeFile.routeInfo.duration)}</S.RouteInfoValue>
             </S.RouteInfoItem>
             <S.RouteInfoItem>
               <span>포인트 수:</span>
-              <S.RouteInfoValue>
-                {activeFile.data.points.length}개
-              </S.RouteInfoValue>
+              <S.RouteInfoValue>{activeFile.data.points.length}개</S.RouteInfoValue>
             </S.RouteInfoItem>
           </S.RouteInfoOverlay>
         )}
